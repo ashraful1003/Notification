@@ -2,11 +2,13 @@ package com.examples.notifications;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -20,12 +22,6 @@ public class MainActivity extends AppCompatActivity {
 
     /// initialize the buttons
     Button toastBtn, customToastBtn, progressBtn;
-
-    /// for progress notification
-    NotificationManager manager;
-    Notification notification;
-    NotificationCompat.Builder builder;
-    int id = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,45 +64,55 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        /// showing progress notification
-        String CHANNEL_ID = "Progress Notification";
-        manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            builder = new NotificationCompat.Builder(MainActivity.this, CHANNEL_ID);
-        } else {
-            builder = new NotificationCompat.Builder(MainActivity.this);
-        }
-        builder.setContentTitle("Notification Title");
-        builder.setSmallIcon(R.drawable.icons);
-        builder.setContentText("Notification Progressing");
-
+        /// progress notification
         progressBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                /// if we are asked to set a progress bar we will use the 'Thread'
-                //
-                /// otherwise remove this part
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        int i;
-                        for (i = 0; i <= 100; i += 5) {
-                            builder.setProgress(100, i, false);
-                            manager.notify(id, builder.build());
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {
-                                Toast.makeText(MainActivity.this, "Error", Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                        builder.setContentText("Progress Done").setProgress(0, 0, false);
-                        manager.notify(id, builder.build());
-                    }
-                }).start();
-
-                /// if we remove the thread we have to uncomment this part to show notification
-//                manager.notify(id, builder.build());
+                addNotification();
             }
         });
+    }
+
+    private void addNotification() {
+        createNotificationChannel();
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationCompat.Builder builder =
+                new NotificationCompat.Builder(this, "here")
+                        .setSmallIcon(R.drawable.icons)
+                        .setContentTitle("Progress Notifications")
+                        .setContentText("This is a progress notification")
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i <= 100; i += 5) {
+                    builder.setProgress(100, i, false);
+                    manager.notify(0, builder.build());
+                    try {
+                        /// in every 500 milliseconds progress will update
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        Toast.makeText(MainActivity.this, e.toString(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+                builder.setContentText("Download completed")
+                        .setProgress(0, 0, false);
+                manager.notify(0, builder.build());
+            }
+        }).start();
+    }
+
+    /// for permission
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = getString(R.string.channel_name);
+            String description = getString(R.string.channel_description);
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel("here", name, importance);
+            channel.setDescription(description);
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
     }
 }
